@@ -1,0 +1,9 @@
+uvicorn>=0.32.0
+websockets==14.2
+fastapi>=0.115.2
+requests>=2.32.3
+python-multipart>=0.0.6
+pydantic>=2.5.0
+pydantic-settings>=2.4.0
+python-dotenv>=1.0.1
+twilio>=9.4.4
