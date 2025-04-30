@@ -146,14 +146,13 @@ A visual representation of the call flow can be found in `diagram.md`. This show
    - **Tools:** 
      - `verify`: Authenticates customer identity
      - `question_and_answer`: Answers general queries
-     - `move_to_claim_handling`: Transitions to claim stage
-     - `escalate_to_manager`: Escalates to manager stage
+     - `move_to_main_convo`: Transitions to MainConvo stage
      - `hangUp`: Ends the call
 
 2. **Stage 2: MainConvo Stage**
-   - **File:** `app/core/prompts.py` - `MANAGER_STAGE_PROMPT`
+   - **File:** `app/core/prompts.py` - `MAINCONVO_STAGE_PROMPT`
    - **Voice:** Mark
-   - **Purpose:** Handle complex issues, provide detailed answers
+   - **Purpose:** Handle clinic Q&A, schedule meeting, biling questions, and dental emergency
    - **Tools:**
      - `question_and_answer`: Handles complex queries
      - `schedule_meeting`: Books appointments
@@ -173,22 +172,11 @@ A visual representation of the call flow can be found in `diagram.md`. This show
 1. **Modify Stage Prompts**
    - Open `app/core/prompts.py`
    - Edit the corresponding stage prompt variables:
-     - `MANAGER_STAGE_PROMPT`
+     - `MAINCONVO_STAGE_PROMPT`
      - `CALL_SUMMARY_STAGE_PROMPT`
    - Each prompt includes sections for Role, Persona, Actions, and other guidelines
 
-2. **Change Voice Settings**
-   - In `app/core/prompts.py`, modify the `STAGE_VOICES` dictionary:
-   ```python
-   STAGE_VOICES = {
-       "claim_handling": "Tanya-English",  # Change voice here
-       "manager": "Mark",                 # Change voice here
-       "call_summary": "Tanya-English"     # Change voice here
-   }
-   ```
-   - Available voices include "Tanya-English" and "Mark"
-
-3. **Add or Modify Tools**
+2. **Add or Modify Tools**
    - Open `app/services/tools_service.py`
    - The `handle_tool_invocation` function contains handlers for each tool
    - To add a new tool:
@@ -196,10 +184,9 @@ A visual representation of the call flow can be found in `diagram.md`. This show
      - Implement the tool's functionality
      - Add necessary response handling
 
-4. **Modify Stage Transitions**
+3. **Modify Stage Transitions**
    - Stage transitions are handled by the following tools in `app/services/tools_service.py`:
-     - `move_to_claim_handling`
-     - `escalate_to_manager`
+     - `move_to_main_convo`
      - `move_to_call_summary`
    - Each transition sets a new system prompt and voice
 

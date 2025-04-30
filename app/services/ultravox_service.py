@@ -84,70 +84,6 @@ async def create_ultravox_call(system_prompt: str, first_message: str) -> str:
             },
             {
                 "temporaryTool": {
-                    "modelToolName": "move_to_claim_handling",
-                    "description": "Transition to the claim handling stage after successful verification",
-                    "dynamicParameters": [],
-                    "timeout": "20s",
-                    "client": {},
-                },
-            },
-            {
-                "temporaryTool": {
-                    "modelToolName": "submit_claim",
-                    "description": "Submit a new insurance claim with all required details",
-                    "dynamicParameters": [
-                        {
-                            "name": "incident_description",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Detailed description of the incident"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "incident_date",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Date of the incident (YYYY-MM-DD format)"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "incident_location",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Location where the incident occurred"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "involved_parties",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Any other parties involved in the incident"
-                            },
-                            "required": False
-                        },
-                        {
-                            "name": "supporting_info",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Any additional information supporting the claim"
-                            },
-                            "required": False
-                        }
-                    ],
-                    "timeout": "20s",
-                    "client": {},
-                },
-            },
-            {
-                "temporaryTool": {
                     "modelToolName": "move_to_call_summary",
                     "description": "Transition to the call summary stage when the conversation is ready to conclude",
                     "dynamicParameters": [],
@@ -158,7 +94,7 @@ async def create_ultravox_call(system_prompt: str, first_message: str) -> str:
             {
                 "temporaryTool": {
                     "modelToolName": "question_and_answer",
-                    "description": "Get answers to customer questions about insurance policies and claims",
+                    "description": "Get answers to customer questions about clinic Q&A, biling questions.",
                     "dynamicParameters": [
                         {
                             "name": "question",
@@ -239,15 +175,15 @@ async def create_ultravox_call(system_prompt: str, first_message: str) -> str:
             },
             {
                 "temporaryTool": {
-                    "modelToolName": "escalate_to_manager",
-                    "description": "Transfer the call to a manager for handling customer complaints, escalations, or special requests",
+                    "modelToolName": "move_to_main_convo",
+                    "description": "Transfer the call to a manager for clinic Q&A, schedule meeting, biling questions, and dental emergency",
                     "dynamicParameters": [
                         {
                             "name": "issue_type",
                             "location": "PARAMETER_LOCATION_BODY",
                             "schema": {
                                 "type": "string",
-                                "enum": ["complaint", "refund_request", "special_accommodation", "general_escalation"],
+                                "enum": ["clinic_QnA", "schedule_meeting", "biling_questions", "dental_emergency"],
                                 "description": "Type of issue requiring manager assistance"
                             },
                             "required": True

@@ -21,7 +21,7 @@ from app.core.config import (
 )
 from app.core.prompts import (
     SYSTEM_MESSAGE, get_stage_prompt, get_stage_voice,
-    MANAGER_STAGE_PROMPT, CALL_SUMMARY_STAGE_PROMPT,
+    MAINCONVO_STAGE_PROMPT, CALL_SUMMARY_STAGE_PROMPT,
     STAGE_VOICES
 )
 

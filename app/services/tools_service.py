@@ -48,61 +48,7 @@ async def handle_tool_invocation(uv_ws, toolName, invocationId, parameters):
         }
         print(f"Verification result: {verification_result}")
         await uv_ws.send(json.dumps(tool_result))
-    
-    elif toolName == "move_to_claim_handling":
-        print(f'Moving to claim handling stage with parameters: {parameters}')
-        # Get claim handling stage system prompt
-        claim_prompt = get_stage_prompt('claim_handling')
-        claim_voice = get_stage_voice('claim_handling')
         
-        # Create stage transition response
-        stage_transition_msg = "Thank you for verifying your identity. I'll now help you with your claim. Could you tell me if you're filing a new claim or checking the status of an existing claim?"
-        
-        # Prepare tool result with stage transition
-        stage_result = {
-            "type": "client_tool_result",
-            "invocationId": invocationId,
-            "result": json.dumps({
-                "systemPrompt": claim_prompt,
-                "voice": claim_voice,
-                "toolResultText": stage_transition_msg
-            }),
-            "response_type": "new-stage"
-        }
-        
-        print(f"Transitioning to claim handling stage with voice: {claim_voice}")
-        await uv_ws.send(json.dumps(stage_result))
-    
-    elif toolName == "submit_claim":
-        print(f'Submitting claim with parameters: {parameters}')
-        # Extract claim details parameters
-        incident_description = parameters.get('incident_description', '')
-        incident_date = parameters.get('incident_date', '')
-        incident_location = parameters.get('incident_location', '')
-        involved_parties = parameters.get('involved_parties', '')
-        supporting_info = parameters.get('supporting_info', '')
-        
-        # This is a mock claim submission - in a real system, you would submit to a database
-        # Generate a fake claim ID for demo purposes
-        import random
-        claim_id = f"CL-{random.randint(10000, 99999)}"
-        
-        submission_result = {
-            "status": "success",
-            "claim_id": claim_id,
-            "processing_time": "3-5 business days"
-        }
-        
-        # Send claim submission result back to the agent
-        tool_result = {
-            "type": "client_tool_result",
-            "invocationId": invocationId,
-            "result": json.dumps(submission_result),
-            "response_type": "tool-response"
-        }
-        print(f"Claim submission result: {submission_result}")
-        await uv_ws.send(json.dumps(tool_result))
-    
     elif toolName == "schedule_meeting":
         print(f'Arguments passed to schedule_meeting tool: {parameters}')
         # Validate required parameters
@@ -124,37 +70,34 @@ async def handle_tool_invocation(uv_ws, toolName, invocationId, parameters):
         else:
             await handle_schedule_meeting(uv_ws, None, invocationId, parameters)
     
-    elif toolName == "escalate_to_manager":
-        print(f'Escalating to manager with parameters: {parameters}')
+    elif toolName == "move_to_main_convo":
+        print(f'Transiting to MainConvo stage with parameters: {parameters}')
         issue_type = parameters.get('issue_type', '')
         issue_details = parameters.get('issue_details', '')
         customer_name = parameters.get('customer_name', '')
         
-        # Get manager stage system prompt
-        manager_prompt = get_stage_prompt('manager')
-        manager_voice = get_stage_voice('manager')
+        # Get main_convo stage system prompt
+        main_convo_prompt = get_stage_prompt('main_convo')
+        main_convo_voice = get_stage_voice('main_convo')
         
         # The transfer intro is handled by the AI, we don't need to include it in the toolResultText
-        # Instead, we'll provide a greeting from the manager directly
-        manager_greeting = f"You're now speaking with Alex, the Senior Manager at SecureLife Insurance. I've been briefed on your situation{', ' + customer_name if customer_name else ''}. You're concerned about {issue_type}. How can I help you today?"
+        # Instead, we'll provide a greeting from the main_convo directly
+        main_convo_greeting = f"You're now speaking with Alex, the Senior main_convo at SecureLife Insurance. I've been briefed on your situation{', ' + customer_name if customer_name else ''}. You're concerned about {issue_type}. How can I help you today?"
         
         # Prepare tool result with stage transition
         stage_result = {
             "type": "client_tool_result",
             "invocationId": invocationId,
             "result": json.dumps({
-                "systemPrompt": manager_prompt,
-                "voice": manager_voice,
-                "toolResultText": manager_greeting
+                "systemPrompt": main_convo_prompt,
+                "voice": main_convo_voice,
+                "toolResultText": main_convo_greeting
             }),
             "response_type": "new-stage"
         }
         
-        print(f"Transitioning to manager stage with voice: {manager_voice}")
+        print(f"Transitioning to main_convo stage with voice: {main_convo_voice}")
         await uv_ws.send(json.dumps(stage_result))
-    
-    # Return to claim handling is no longer a separate tool according to the diagram
-    # The manager can return the customer to claim handling as a direct transition
     
     elif toolName == "move_to_call_summary":
         print(f'Moving to call summary stage with parameters: {parameters}')
