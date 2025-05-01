@@ -132,7 +132,7 @@ The application will be available at your ngrok URL: `https://xxxx-xx-xx-xxx-xx.
 ### Call Stages Configuration
 
 #### Overview
-This application uses a multi-stage call flow system designed for SecureLife Insurance. Each stage has its own voice personality, system prompt, and available tools.
+This application uses a multi-stage call flow system designed for Dental Help 360 clinic. Each stage has its own voice personality, system prompt, and available tools.
 
 #### Call Flow Diagram
 A visual representation of the call flow can be found in `diagram.md`. This shows all stages, transitions, and available tools.
