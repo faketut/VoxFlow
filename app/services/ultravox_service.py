@@ -4,10 +4,11 @@ Services for interacting with Ultravox voice AI.
 import requests
 from app.core.config import (
     ULTRAVOX_API_KEY,
-    ULTRAVOX_MODEL, 
-    ULTRAVOX_VOICE, 
+    ULTRAVOX_MODEL,
+    ULTRAVOX_VOICE,
     ULTRAVOX_SAMPLE_RATE,
-    ULTRAVOX_BUFFER_SIZE
+    ULTRAVOX_BUFFER_SIZE,
+    N8N_WEBHOOK_URL  # Assuming N8N_WEBHOOK_URL is defined in config
 )
 
 
@@ -45,44 +46,7 @@ async def create_ultravox_call(system_prompt: str, first_message: str) -> str:
             "minimumInterruptionDuration": "0.09s"
         },
         "selectedTools": [  
-            {
-                "temporaryTool": {
-                    "modelToolName": "verify",
-                    "description": "Verify the customer's identity before proceeding with any sensitive information or actions",
-                    "dynamicParameters": [
-                        {
-                            "name": "full_name",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Customer's full name for verification"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "date_of_birth",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Customer's date of birth (YYYY-MM-DD format)"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "policy_number",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Customer's insurance policy number"
-                            },
-                            "required": True
-                        }
-                    ],
-                    "timeout": "20s",
-                    "client": {},
-                },
-            },
-            {
+           {
                 "temporaryTool": {
                     "modelToolName": "move_to_call_summary",
                     "description": "Transition to the call summary stage when the conversation is ready to conclude",
@@ -92,79 +56,77 @@ async def create_ultravox_call(system_prompt: str, first_message: str) -> str:
                 },
             },
             {
-                "temporaryTool": {
-                    "modelToolName": "question_and_answer",
-                    "description": "Get answers to customer questions about clinic Q&A, biling questions.",
-                    "dynamicParameters": [
-                        {
-                            "name": "question",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Question to be answered"
-                            },
-                            "required": True
-                        }
-                    ],
-                    "timeout": "20s",
-                    "client": {},
-                },
+                "toolName": "queryCorpus",
+                "parameterOverrides": {
+                    "corpus_id": "da6de42d-7f32-449e-a77a-9b948f834946",
+                    "max_results": 5
+                }
             },
             {
                 "temporaryTool": {
-                    "modelToolName": "schedule_meeting",
-                    "description": "Schedule a meeting for a customer. Returns a message indicating whether the booking was successful or not.",
-                    "dynamicParameters": [
-                        {
-                            "name": "name",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Customer's name"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "email",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Customer's email"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "purpose",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Purpose of the Meeting"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "datetime",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "description": "Meeting Datetime"
-                            },
-                            "required": True
-                        },
-                        {
-                            "name": "location",
-                            "location": "PARAMETER_LOCATION_BODY",
-                            "schema": {
-                                "type": "string",
-                                "enum": ["London", "Manchester", "Brighton"],
-                                "description": "Meeting location"
-                            },
-                            "required": True
-                        }
-                    ],
-                    "timeout": "20s",
-                    "client": {},
-                },
+                "modelToolName": "schedule_meeting",
+                "description": "Send an online booking link to the patient via email or text.",
+                "dynamicParameters": [
+                    {
+                    "name": "pt_Name",
+                    "location": "PARAMETER_LOCATION_BODY",
+                    "schema": {
+                        "type": "string",
+                        "description": "name of the patient. Leave empty if not specified."
+                    },
+                    "required": False
+                    },
+                    {
+                    "name": "pt_phoneNumber",
+                    "location": "PARAMETER_LOCATION_BODY",
+                    "schema": { "type": "string", "pattern": "^\\d{10}$" },
+                    "required": False
+                    },
+                    {
+                    "name": "pt_email",
+                    "location": "PARAMETER_LOCATION_BODY",
+                    "schema": {
+                        "type": "string",
+                        "description": "Email address of the patient. Leave empty if not specified."
+                    },
+                    "required": False
+                    },
+                    {
+                    "name": "bookinglink",
+                    "location": "PARAMETER_LOCATION_BODY",
+                    "schema": {
+                        "type": "string",
+                        "description": "Use the booking link for the corresponding clinic from queryCorpus tool"
+                    },
+                    "required": False
+                    },
+                    {
+                    "name": "clinicName",
+                    "location": "PARAMETER_LOCATION_BODY",
+                    "schema": {
+                        "type": "string",
+                        "description": "Get the Clinic's name from the call context {{clinicName}}"
+                    },
+                    "required": False
+                    },
+                    {
+                    "name": "route",
+                    "location": "PARAMETER_LOCATION_BODY",
+                    "schema": {
+                        "description": "The route identifier for this tool",
+                        "type": "integer",
+                        "enum": [2]
+                    },
+                    "required": True
+                    }
+                ],
+                "timeout": "20s",
+                "http": {
+                    "baseUrlPattern": N8N_WEBHOOK_URL,  # Use the imported config variable
+                    "httpMethod": "POST"
+                }
+                }
+                
             },
             { 
                 "temporaryTool": {

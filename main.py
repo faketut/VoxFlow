@@ -9,7 +9,7 @@ from app.main import app
 # Import critical services and components to ensure they're accessible
 from app.core.shared_state import sessions
 from app.websockets.media_stream import media_stream
-from app.services.tools_service import handle_tool_invocation, handle_question_and_answer, handle_schedule_meeting
+from app.services.tools_service import handle_tool_invocation, handle_queryCorpus, handle_schedule_meeting
 from app.services.ultravox_service import create_ultravox_call
 from app.services.n8n_service import send_transcript_to_n8n, send_to_webhook
 from app.utils.websocket_utils import safe_close_websocket

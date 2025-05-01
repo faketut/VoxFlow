@@ -22,21 +22,20 @@ async def handle_tool_invocation(uv_ws, toolName, invocationId, parameters):
     """
     print(f"Processing tool invocation: {toolName} with invocationId: {invocationId} and parameters: {parameters}")
     
-    if toolName == "question_and_answer":
+    if toolName == "queryCorpus":
         question = parameters.get('question')
-        print(f'Arguments passed to question_and_answer tool: {parameters}')
-        await handle_question_and_answer(uv_ws, invocationId, question)
+        print(f'Arguments passed to queryCorpus tool: {parameters}')
+        await handle_queryCorpus(uv_ws, invocationId, question)
     
     elif toolName == "verify":
         print(f'Verifying customer identity with parameters: {parameters}')
         # Extract verification parameters
         full_name = parameters.get('full_name', '')
-        date_of_birth = parameters.get('date_of_birth', '')
-        policy_number = parameters.get('policy_number', '')
+        phone_number = parameters.get('phone_number', '')
         
         # This is a mock verification - in a real system, you would check against a database
         # For demo purposes, we'll consider verification successful if all fields are provided
-        verification_successful = all([full_name, date_of_birth, policy_number])
+        verification_successful = all([full_name, phone_number])
         
         # Send verification result back to the agent
         verification_result = "Confirmed" if verification_successful else "Not Confirmed"
@@ -196,7 +195,7 @@ async def handle_tool_invocation(uv_ws, toolName, invocationId, parameters):
         print(f"Unknown tool: {toolName}")
 
 
-async def handle_question_and_answer(uv_ws, invocationId: str, question: str):
+async def handle_queryCorpus(uv_ws, invocationId: str, question: str):
     try:
         # Optional: validate or log the question
         print(f"[Q&A] Handling question: {question}")

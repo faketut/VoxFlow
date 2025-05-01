@@ -144,8 +144,7 @@ A visual representation of the call flow can be found in `diagram.md`. This show
    - **Voice:** Tanya-English (defined as Sara in the prompt)
    - **Purpose:** Greeting customers, identity verification
    - **Tools:** 
-     - `verify`: Authenticates customer identity
-     - `question_and_answer`: Answers general queries
+     - `queryCorpus`: Answers general queries
      - `move_to_main_convo`: Transitions to MainConvo stage
      - `hangUp`: Ends the call
 
@@ -154,7 +153,7 @@ A visual representation of the call flow can be found in `diagram.md`. This show
    - **Voice:** Mark
    - **Purpose:** Handle clinic Q&A, schedule meeting, biling questions, and dental emergency
    - **Tools:**
-     - `question_and_answer`: Handles complex queries
+     - `queryCorpus`: Handles complex queries
      - `schedule_meeting`: Books appointments
      - `move_to_call_summary`: Transitions to call summary
      - `hangUp`: Ends the call
@@ -164,7 +163,7 @@ A visual representation of the call flow can be found in `diagram.md`. This show
    - **Voice:** Tanya-English
    - **Purpose:** Summarize the call, confirm next steps
    - **Tools:**
-     - `question_and_answer`: Answers final queries
+     - `queryCorpus`: Answers final queries
      - `hangUp`: Ends the call
 
 #### How to Customize Call Stages
