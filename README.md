@@ -133,9 +133,7 @@ elif toolName == "your_tool":
 - **Ngrok URL changes**: Update `PUBLIC_URL` when ngrok restarts
 - **API errors**: Check environment variables and API keys
 
-## 📄 License
 
-MIT License - See LICENSE file for details.
 
 ---
 
