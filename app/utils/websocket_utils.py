@@ -1,43 +1,41 @@
 """
 Utility functions for WebSocket management.
 """
+from __future__ import annotations
+
 import asyncio
-import websockets
+import logging
+from typing import Any
+
+from websockets.protocol import State
+
+logger = logging.getLogger(__name__)
 
 
-async def safe_close_websocket(ws, name="WebSocket", timeout=3.0):
-    """Safely close a WebSocket with timeout handling and error management."""
-    if not ws or not hasattr(ws, 'state'):
-        print(f"{name} is not valid or already closed")
+async def safe_close_websocket(
+    ws: Any, name: str = "WebSocket", timeout: float = 3.0
+) -> None:
+    """Close ``ws`` if open, swallowing errors and bounding the close handshake."""
+    if ws is None:
+        logger.debug("%s is None, nothing to close", name)
         return
-        
-    if ws.state != websockets.protocol.State.OPEN:
-        print(f"{name} is not in OPEN state, current state: {ws.state}")
-        return
-        
-    print(f"Attempting to safely close {name}...")
-    
+
     try:
-        # Set shorter timeouts before closing if possible
-        if hasattr(ws, 'ping_timeout'):
-            ws.ping_timeout = 2.0
-        if hasattr(ws, 'close_timeout'):
-            ws.close_timeout = 2.0
-            
-        # Close with timeout
-        try:
-            await asyncio.wait_for(ws.close(), timeout=timeout)
-            print(f"{name} closed successfully")
-        except asyncio.TimeoutError:
-            # print(f"Timeout while closing {name}, forcing cleanup")
-            # Force the connection to be considered closed if possible
-            if hasattr(ws, '_close_connection'):
-                ws._close_connection()
-    except Exception as e:
-        print(f"Error closing {name}: {e}")
-        if hasattr(ws, '_close_connection'):
-            try:
-                ws._close_connection()
-                print(f"Forced {name} closure after error")
-            except Exception as forced_error:
-                print(f"Even forced {name} closure failed: {forced_error}")
+        state = ws.state
+    except AttributeError:
+        logger.debug("%s has no `state` attribute, attempting close anyway", name)
+        state = None
+
+    if state is not None and state != State.OPEN:
+        logger.debug("%s is not OPEN (state=%s), skipping close", name, state)
+        return
+
+    logger.debug("Closing %s ...", name)
+    try:
+        await asyncio.wait_for(ws.close(), timeout=timeout)
+        logger.debug("%s closed cleanly", name)
+    except asyncio.TimeoutError:
+        logger.warning("Timeout while closing %s after %.1fs", name, timeout)
+    except Exception:  # pragma: no cover - best-effort cleanup
+        logger.exception("Error while closing %s", name)
+

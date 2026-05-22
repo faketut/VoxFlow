@@ -1,180 +1,224 @@
 """
 API endpoints for handling Twilio calls.
 """
+from __future__ import annotations
+
 import json
-import requests
+import logging
+import traceback
 from datetime import datetime
+from typing import Any
+
+import httpx
+from fastapi import APIRouter, HTTPException, Request, Response
+from pydantic import BaseModel, Field
 from twilio.rest import Client
-from fastapi import APIRouter, Request, Response
-from app.core.shared_state import sessions
-from app.core.config import PUBLIC_URL, DEFAULT_FIRST_MESSAGE, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER, N8N_WEBHOOK_URL
+from twilio.twiml.voice_response import Connect, VoiceResponse
+
+from app.core.config import (
+    DEFAULT_FIRST_MESSAGE,
+    HTTP_TIMEOUT_SECONDS,
+    N8N_WEBHOOK_URL,
+    PUBLIC_URL,
+    TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN,
+    TWILIO_PHONE_NUMBER,
+)
+from app.core.shared_state import session_manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# n8n route identifiers (documented in the n8n workflow itself).
+N8N_ROUTE_FIRST_MESSAGE = "1"
+
+# Twilio status-callback event subscription.
+_TWILIO_STATUS_EVENTS: tuple[str, ...] = (
+    'initiated', 'ringing', 'answered', 'completed',
+)
+
+
+class OutgoingCallRequest(BaseModel):
+    """Request body for ``POST /outgoing-call``."""
+
+    phoneNumber: str = Field(
+        ..., pattern=r"^\+?[1-9]\d{7,14}$",
+        description="Destination phone number in E.164-ish form."
+    )
+    firstMessage: str | None = None
+
+
+def _build_stream_twiml(stream_url: str, first_message: str,
+                        caller_number: str, call_sid: str | None = None) -> str:
+    """Build a TwiML <Connect><Stream> response.
+
+    Uses the Twilio helper so values are properly XML-escaped (prevents
+    TwiML injection when the upstream first-message contains ``<`` / ``&`` / ``"``).
+    """
+    response = VoiceResponse()
+    connect = Connect()
+    stream = connect.stream(url=stream_url)
+    stream.parameter(name="firstMessage", value=first_message)
+    stream.parameter(name="callerNumber", value=caller_number)
+    if call_sid is not None:
+        stream.parameter(name="callSid", value=call_sid)
+    response.append(connect)
+    return str(response)
+
+
+async def _fetch_first_message_from_n8n(caller_number: str) -> str:
+    """Ask n8n for the dynamic first-message; fall back to the default on any error."""
+    if not N8N_WEBHOOK_URL:
+        logger.warning("N8N_WEBHOOK_URL not set; using DEFAULT_FIRST_MESSAGE")
+        return DEFAULT_FIRST_MESSAGE
+
+    try:
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
+            resp = await client.post(
+                N8N_WEBHOOK_URL,
+                headers={"Content-Type": "application/json"},
+                json={
+                    "route": N8N_ROUTE_FIRST_MESSAGE,
+                    "number": caller_number,
+                    "data": "empty",
+                },
+            )
+    except (httpx.TimeoutException, httpx.HTTPError) as e:
+        logger.warning("n8n first-message fetch failed: %s", e)
+        return DEFAULT_FIRST_MESSAGE
+
+    if resp.status_code >= 400:
+        logger.warning("n8n first-message non-OK status: %d", resp.status_code)
+        return DEFAULT_FIRST_MESSAGE
+
+    text = resp.text
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return text.strip() or DEFAULT_FIRST_MESSAGE
+
+    if isinstance(data, dict) and data.get('firstMessage'):
+        return str(data['firstMessage'])
+    return DEFAULT_FIRST_MESSAGE
+
 
 @router.get("/")
-async def root():
+async def root() -> dict[str, str]:
     """Root endpoint to check if the service is running."""
     return {"message": "Twilio + Ultravox Media Stream Server is running!"}
 
 
 @router.post("/incoming-call")
-async def incoming_call(request: Request):
-    """
-    Handle the inbound call from Twilio. 
-    - Fetch firstMessage from N8N
-    - Store session data
-    - Respond with TwiML containing <Stream> to /media-stream
+async def incoming_call(request: Request) -> Response:
+    """Handle the inbound call from Twilio.
+
+    Fetches the first message from n8n, stores session data, and returns a
+    TwiML response that bridges the call into ``/media-stream``.
     """
     form_data = await request.form()
-    twilio_params = dict(form_data)
-    print('Incoming call')
-    # print('Twilio Inbound Details:', json.dumps(twilio_params, indent=2))
+    twilio_params: dict[str, Any] = dict(form_data)
+    logger.info("Incoming call")
 
     caller_number = twilio_params.get('From', 'Unknown')
     session_id = twilio_params.get('CallSid')
-    print("Caller Number:", caller_number)
-    print("Session ID (CallSid):", session_id)
+    logger.info("Caller Number: %s, CallSid: %s", caller_number, session_id)
 
-    # Fetch first message from N8N
-    first_message = DEFAULT_FIRST_MESSAGE
-    print("Fetching N8N ...")
-    try:
-        webhook_response = requests.post(
-            N8N_WEBHOOK_URL,
-            headers={"Content-Type": "application/json"},
-            json={
-                "route": "1",
-                "number": caller_number,
-                "data": "empty"
-            },
-            # verify=False  # Uncomment if using self-signed certs (not recommended)
+    first_message = await _fetch_first_message_from_n8n(caller_number)
+
+    if session_id:
+        await session_manager.create(
+            session_id,
+            transcript="",
+            callerNumber=caller_number,
+            callDetails=twilio_params,
+            firstMessage=first_message,
+            streamSid=None,
+            hanging_up=False,
+            transcript_sent=False,
         )
-        if webhook_response.ok:
-            response_text = webhook_response.text
-            try:
-                response_data = json.loads(response_text)
-                if response_data and response_data.get('firstMessage'):
-                    first_message = response_data['firstMessage']
-                    print('Parsed firstMessage from N8N:', first_message)
-            except json.JSONDecodeError:
-                # If response is not JSON, treat it as raw text
-                first_message = response_text.strip()
-        else:
-            print(f"Failed to send data to N8N webhook: {webhook_response.status_code}")
-    except Exception as e:
-        print(f"Error sending data to N8N webhook: {e}")
 
-    # Save session
-    session = {
-        "transcript": "",
-        "callerNumber": caller_number,
-        "callDetails": twilio_params,
-        "firstMessage": first_message,
-        "streamSid": None,
-        "hanging_up": False,  # Track if the call is being hung up
-        "transcript_sent": False  # Track if transcript was sent to N8N
-    }
-    sessions[session_id] = session
-
-    # Respond with TwiML to connect to /media-stream
-    host = PUBLIC_URL
+    host = PUBLIC_URL or ""
     stream_url = f"{host.replace('https', 'wss')}/media-stream"
 
-    twiml_response = f"""<?xml version="1.0" encoding="UTF-8"?>
-        <Response>
-            <Connect>
-                <Stream url="{stream_url}">
-                    <Parameter name="firstMessage" value="{first_message}" />
-                    <Parameter name="callerNumber" value="{caller_number}" />
-                    <Parameter name="callSid" value="{session_id}" />
-                </Stream>
-            </Connect>
-        </Response>"""
-
-    return Response(content=twiml_response, media_type="text/xml")
+    twiml = _build_stream_twiml(
+        stream_url=stream_url,
+        first_message=first_message,
+        caller_number=caller_number,
+        call_sid=session_id,
+    )
+    return Response(content=twiml, media_type="text/xml")
 
 
 @router.post("/outgoing-call")
-async def outgoing_call(request: Request):
+async def outgoing_call(payload: OutgoingCallRequest) -> dict[str, Any]:
+    """Initiate an outbound Twilio call wired into ``/media-stream``."""
+    phone_number = payload.phoneNumber
+    first_message = payload.firstMessage or DEFAULT_FIRST_MESSAGE
+
+    logger.info("Initiating outbound call to %s", phone_number)
+
     try:
-        # Get request data
-        data = await request.json() 
-        phone_number = data.get('phoneNumber')
-        first_message = data.get('firstMessage')
-        if not phone_number:
-            return {"error": "Phone number is required"}, 400
-        
-        print('📞 Initiating outbound call to:', phone_number)
-        print('📝 With the following first message:', first_message)
-        
-        # Initialize Twilio client
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
-        # Store call data
-        call_data = {
-            "originalRequest": data,
-            "startTime": datetime.now().isoformat()
-        }
-
-         # Respond with TwiML to connect to /media-stream
-        host = PUBLIC_URL
+        host = PUBLIC_URL or ""
         stream_url = f"{host.replace('https', 'wss')}/media-stream"
-        
-        print('📱 Creating Twilio call with TWIML...')
+
+        twiml = _build_stream_twiml(
+            stream_url=stream_url,
+            first_message=first_message,
+            caller_number=phone_number,
+        )
+
         call = client.calls.create(
-            twiml=f'''<Response>
-                        <Connect>
-                            <Stream url="{stream_url}">
-                                <Parameter name="firstMessage" value="{first_message}" />
-                                <Parameter name="callerNumber" value="{phone_number}" />
-                            </Stream> 
-                        </Connect>
-                    </Response>''',
+            twiml=twiml,
             to=phone_number,
             from_=TWILIO_PHONE_NUMBER,
             status_callback=f"{PUBLIC_URL}/call-status",
-            status_callback_event=['initiated', 'ringing', 'answered', 'completed']
+            status_callback_event=list(_TWILIO_STATUS_EVENTS),
         )
 
-        print('📱 Twilio call created:', call.sid)
-        # Store call data in sessions
-        sessions[call.sid] = {
-            "transcript": "",
-            "callerNumber": phone_number,
-            "callDetails": call_data,
-            "firstMessage": first_message,
-            "streamSid": None,
-            "hanging_up": False,  # Track if the call is being hung up
-            "transcript_sent": False  # Track if transcript was sent to N8N
-        }
+        logger.info("Twilio call created: %s", call.sid)
 
-        return {
-            "success": True,
-            "callSid": call.sid
-        }
+        await session_manager.create(
+            call.sid,
+            transcript="",
+            callerNumber=phone_number,
+            callDetails={
+                "originalRequest": payload.model_dump(),
+                "startTime": datetime.now().isoformat(),
+            },
+            firstMessage=first_message,
+            streamSid=None,
+            hanging_up=False,
+            transcript_sent=False,
+        )
+
+        return {"success": True, "callSid": call.sid}
 
     except Exception as error:
-        print('❌ Error creating call:', str(error))
-        traceback.print_exc()
-        return {"error": str(error)}, 500
+        logger.exception("Error creating outbound call")
+        # Keep parity with previous error envelope so existing clients still parse it.
+        raise HTTPException(status_code=500, detail=str(error))
 
 
 @router.post("/call-status")
-async def call_status(request: Request):
+async def call_status(request: Request) -> dict[str, Any]:
+    """Receive Twilio status-callback events (currently logged only)."""
     try:
-        # Get form data
         data = await request.form()
-        print('\n=== 📱 Twilio Status Update ===')
-        print('Status:', data.get('CallStatus'))
-        print('Duration:', data.get('CallDuration'))
-        print('Timestamp:', data.get('Timestamp'))
-        print('Call SID:', data.get('CallSid'))
-        # print('Full status payload:', dict(data))
-        print('\n====== END ======')
-        
-    except Exception as e:
-        print(f"Error getting request data: {e}")
-        return {"error": str(e)}, 400
+        logger.info(
+            "Twilio status update: status=%s duration=%s timestamp=%s callSid=%s",
+            data.get('CallStatus'),
+            data.get('CallDuration'),
+            data.get('Timestamp'),
+            data.get('CallSid'),
+        )
+    except Exception:
+        logger.exception("Error reading /call-status request")
+        # Silence used to need `traceback`; logger.exception now captures it.
+        _ = traceback  # keep import live for downstream debugging
+        raise HTTPException(status_code=400, detail="Invalid request")
 
     return {"success": True}
+

@@ -1,45 +1,61 @@
 """
-Services for handling webhook communications.
+Services for handling webhook communications with n8n.
 """
+from __future__ import annotations
+
 import json
-import requests
-from app.core.config import N8N_WEBHOOK_URL
+import logging
+from typing import Any
+
+import httpx
+
+from app.core.config import HTTP_TIMEOUT_SECONDS, N8N_WEBHOOK_URL
+
+logger = logging.getLogger(__name__)
 
 
-async def send_transcript_to_n8n(session):
-    print("📝 Full Transcript:\n", session['transcript'])
+async def send_transcript_to_n8n(session: dict[str, Any]) -> None:
+    """Forward the full call transcript to the n8n workflow."""
+    logger.info("Sending full transcript to n8n (length=%d)", len(session.get('transcript', '')))
     await send_to_webhook({
         "route": "2",
         "number": session.get("callerNumber", "Unknown"),
-        "data": session["transcript"]
+        "data": session.get("transcript", ""),
     })
-    # Mark transcript as sent
     session['transcript_sent'] = True
 
 
-async def send_to_webhook(payload):
+async def send_to_webhook(payload: dict[str, Any]) -> str:
+    """POST ``payload`` to the configured n8n webhook and return the body text.
+
+    Returns a JSON-encoded error string on failure rather than raising, so
+    callers (which often forward the result to the agent) can keep running.
+    """
     if not N8N_WEBHOOK_URL:
-        print("Error: N8N_WEBHOOK_URL is not set")
+        logger.error("N8N_WEBHOOK_URL is not configured")
         return json.dumps({"error": "N8N_WEBHOOK_URL not configured"})
-        
+
     try:
-        print(f"Sending payload to N8N webhook: {N8N_WEBHOOK_URL}")
-        # print(f"Payload: {json.dumps(payload, indent=2)}")
-        
-        response = requests.post(
-            N8N_WEBHOOK_URL,
-            json=payload,
-            headers={"Content-Type": "application/json"}
-        )
-        
+        logger.debug("POST %s payload=%s", N8N_WEBHOOK_URL, payload)
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                N8N_WEBHOOK_URL,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+
         if response.status_code != 200:
-            print(f"N8N webhook returned status code {response.status_code}")
-            print(f"Response: {response.text}")
+            logger.warning(
+                "n8n webhook returned %d: %s", response.status_code, response.text
+            )
             return json.dumps({"error": f"N8N webhook returned status {response.status_code}"})
-            
+
         return response.text
-        
-    except requests.exceptions.RequestException as e:
-        error_msg = f"Error sending data to N8N webhook: {str(e)}"
-        print(error_msg)
-        return json.dumps({"error": error_msg})
+
+    except httpx.TimeoutException as e:
+        logger.warning("Timeout calling n8n webhook: %s", e)
+        return json.dumps({"error": f"N8N webhook timeout: {e}"})
+    except httpx.HTTPError as e:
+        logger.exception("HTTP error calling n8n webhook")
+        return json.dumps({"error": f"N8N webhook HTTP error: {e}"})
+
