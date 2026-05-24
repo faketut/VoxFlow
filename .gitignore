@@ -2,3 +2,7 @@
 __pycache__
 .venv
 ./app/__pycache__
+.coverage
+coverage.xml
+.pytest_cache/
+.ruff_cache/
