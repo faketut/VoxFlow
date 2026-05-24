@@ -21,9 +21,9 @@ Treat each conversational phase as a state with its own system prompt:
 ```mermaid
 stateDiagram-v2
     [*] --> Greet
-    Greet: Stage 1\nGreet & Verify\n• Greet politely\n• Collect name + phone\n• Call verify()
-    Main: Stage 2\nMain Conversation\n• Answer questions\n• Schedule meetings\n• Resolve issues
-    Summary: Stage 3\nSummary & Close\n• Recap key points\n• Confirm next steps\n• Goodbye + hangUp
+    Greet: Stage 1: Greet & Verify<br>• Greet politely<br>• Collect name + phone<br>• Call verify()
+    Main: Stage 2: Main Conversation<br>• Answer questions<br>• Schedule meetings<br>• Resolve issues
+    Summary: Stage 3: Summary & Close<br>• Recap key points<br>• Confirm next steps<br>• Goodbye + hangUp
     Greet --> Main: move_to_main_convo
     Main --> Summary: move_to_call_summary
     Summary --> [*]
