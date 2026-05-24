@@ -41,7 +41,7 @@ LOG_LEVEL: str = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 # Agent identity — override to white-label VoxFlow for a different business.
 AGENT_NAME: str = os.environ.get('AGENT_NAME', 'Sara')
-COMPANY_NAME: str = os.environ.get('COMPANY_NAME', 'Dental Help 360')
+COMPANY_NAME: str = os.environ.get('COMPANY_NAME', 'Dental Clinic')
 
 # Inbound Agent Default First Message
 DEFAULT_FIRST_MESSAGE: str = os.environ.get(
