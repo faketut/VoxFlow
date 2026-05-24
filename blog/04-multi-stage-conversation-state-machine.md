@@ -18,15 +18,15 @@ This works for two turns and falls apart for ten. The model loses track of which
 
 Treat each conversational phase as a state with its own system prompt:
 
-```
-┌─────────────────────┐         ┌──────────────────────┐         ┌──────────────────────┐
-│ Stage 1: Greet &    │         │ Stage 2: Main        │         │ Stage 3: Summary     │
-│ Verify Identity     │ ───────▶│ Conversation         │ ───────▶│ & Close              │
-│                     │ tool:   │                      │ tool:   │                      │
-│ - Greet politely    │ move_to │ - Answer questions   │ move_to │ - Recap key points   │
-│ - Collect name+phone│ _main_  │ - Schedule meetings  │ _call_  │ - Confirm next steps │
-│ - Call verify()     │ convo   │ - Resolve issues     │ summary │ - Goodbye + hangUp   │
-└─────────────────────┘         └──────────────────────┘         └──────────────────────┘
+```mermaid
+stateDiagram-v2
+    [*] --> Greet
+    Greet: Stage 1\nGreet & Verify\n• Greet politely\n• Collect name + phone\n• Call verify()
+    Main: Stage 2\nMain Conversation\n• Answer questions\n• Schedule meetings\n• Resolve issues
+    Summary: Stage 3\nSummary & Close\n• Recap key points\n• Confirm next steps\n• Goodbye + hangUp
+    Greet --> Main: move_to_main_convo
+    Main --> Summary: move_to_call_summary
+    Summary --> [*]
 ```
 
 Each stage gets:

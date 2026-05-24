@@ -52,14 +52,16 @@ Same API, same performance (it's the original C code, just packaged separately).
 
 ## The data flow
 
-```
-┌──────────┐  20ms μ-law  ┌─────────┐  ulaw2lin   ┌──────────┐
-│  Twilio  │ ───────────▶ │ VoxFlow │ ──────────▶ │ Ultravox │
-└──────────┘   base64'd    └─────────┘  raw PCM    └──────────┘
-                                ▲
-┌──────────┐  20ms μ-law         │  lin2ulaw      ┌──────────┐
-│  Twilio  │ ◀───────────────────┴────────────────│ Ultravox │
-└──────────┘   base64'd + JSON                    └──────────┘
+```mermaid
+flowchart LR
+    subgraph Inbound["Inbound: caller → AI"]
+        T1[Twilio] -- "20ms μ-law<br/>base64 in JSON" --> V1[VoxFlow]
+        V1 -- "ulaw2lin<br/>raw PCM" --> U1[Ultravox]
+    end
+    subgraph Outbound["Outbound: AI → caller"]
+        U2[Ultravox] -- "raw PCM" --> V2[VoxFlow]
+        V2 -- "lin2ulaw<br/>base64 in JSON" --> T2[Twilio]
+    end
 ```
 
 Twilio wraps the μ-law bytes in base64 inside a JSON envelope. Ultravox sends raw binary frames over WebSocket. So the transformation pipeline is:

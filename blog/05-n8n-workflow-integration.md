@@ -6,14 +6,14 @@
 
 VoxFlow does one thing: it makes a phone call into an AI conversation. It doesn't know about your CRM, your calendar, your email templates, or your business rules. That's deliberate.
 
-```
-┌──────────┐     ┌──────────┐     ┌────────────────────────┐
-│  Caller  │ ──▶ │ VoxFlow  │ ──▶ │ n8n workflow           │
-│          │     │ (AI)     │     │ - CRM lookup           │
-│          │     │          │     │ - Calendar booking     │
-│          │     │          │     │ - Email confirmations  │
-│          │     │          │     │ - Slack notifications  │
-└──────────┘     └──────────┘     └────────────────────────┘
+```mermaid
+flowchart LR
+    Caller([Caller]) --> VoxFlow[VoxFlow<br/>AI]
+    VoxFlow --> N8N[n8n workflow]
+    N8N --> CRM[CRM lookup]
+    N8N --> Cal[Calendar booking]
+    N8N --> Email[Email confirmations]
+    N8N --> Slack[Slack notifications]
 ```
 
 VoxFlow is the **mouth and ears**. n8n is the **hands**.
@@ -32,21 +32,16 @@ This is the entire integration surface. Implement these three routes and you've 
 
 ## The minimal n8n workflow
 
-```
-Webhook Trigger (POST /webhook/abc123)
-    │
-    ▼
-Switch node on $json.route
-    │
-    ├── "1" → HTTP Request to CRM by phone number
-    │         └── Set: {firstMessage: "Hi {{$json.name}}, ..."}
-    │
-    ├── "2" → Postgres node: INSERT INTO call_log (number, transcript)
-    │         └── Optionally: Slack notification with summary
-    │
-    └── "3" → Google Calendar: Create event
-              └── Email node: Send confirmation
-                  └── Set: {message: "Booked for {{$json.datetime}}"}
+```mermaid
+flowchart TD
+    WH[Webhook Trigger<br/>POST /webhook/abc123] --> SW{Switch on<br/>$json.route}
+    SW -- "1" --> R1[HTTP Request: CRM lookup by phone]
+    R1 --> R1b["Set: {firstMessage: 'Hi {{name}}, ...'}"]
+    SW -- "2" --> R2[Postgres: INSERT INTO call_log]
+    R2 --> R2b[Optional: Slack notification]
+    SW -- "3" --> R3[Google Calendar: Create event]
+    R3 --> R3b[Email: Send confirmation]
+    R3b --> R3c["Set: {message: 'Booked for {{datetime}}'}"]
 ```
 
 That's it. Three branches. No code.
@@ -87,21 +82,24 @@ The AI doesn't care. From its perspective, `schedule_meeting()` returned a messa
 
 ## A complete n8n flow for a dental clinic
 
-```
-1. Webhook trigger
-2. Switch on route
-   ├── Route 1 (greeting):
-   │   - HubSpot: find contact by phone
-   │   - IF found: build personalized greeting
-   │   - ELSE: return generic
-   ├── Route 2 (transcript):
-   │   - HubSpot: append to contact timeline
-   │   - GPT-4 node: extract intent + sentiment
-   │   - IF sentiment=negative: Slack alert to manager
-   ├── Route 3 (booking):
-   │   - Google Calendar: check availability
-   │   - IF available: create event + send SMS
-   │   - ELSE: return alt slot suggestion to AI
+```mermaid
+flowchart TD
+    WH[Webhook trigger] --> SW{Switch on route}
+
+    SW -- "1: greeting" --> G1[HubSpot: find contact by phone]
+    G1 --> G2{Found?}
+    G2 -- yes --> G3[Build personalized greeting]
+    G2 -- no --> G4[Return generic greeting]
+
+    SW -- "2: transcript" --> T1[HubSpot: append to timeline]
+    T1 --> T2[GPT-4: extract intent + sentiment]
+    T2 --> T3{Sentiment<br/>negative?}
+    T3 -- yes --> T4[Slack alert to manager]
+
+    SW -- "3: booking" --> B1[Google Calendar: check availability]
+    B1 --> B2{Available?}
+    B2 -- yes --> B3[Create event + send SMS]
+    B2 -- no --> B4[Return alt slot to AI]
 ```
 
 Zero lines of Python written. The receptionist now talks to HubSpot and books appointments on a real calendar.

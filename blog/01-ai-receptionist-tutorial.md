@@ -14,14 +14,16 @@ No human in the loop. Real audio, real conversation, real tool calls.
 
 ## The three actors
 
-```
-┌─────────┐   PSTN   ┌────────┐  HTTPS  ┌──────────┐   WSS   ┌──────────┐
-│ Caller  │ ───────▶ │ Twilio │ ──────▶ │ VoxFlow  │ ──────▶ │ Ultravox │
-└─────────┘          └────────┘         │ (FastAPI)│         │   AI     │
-                          │             └──────────┘         └──────────┘
-                          │                  │
-                          │  Media Stream    │
-                          └──────WSS─────────┘
+```mermaid
+flowchart LR
+    Caller([Caller])
+    Twilio[Twilio]
+    VoxFlow[VoxFlow<br/>FastAPI]
+    Ultravox[Ultravox AI]
+    Caller -- PSTN --> Twilio
+    Twilio -- HTTPS webhook --> VoxFlow
+    VoxFlow -- WSS --> Ultravox
+    Twilio <-- Media Stream WSS --> VoxFlow
 ```
 
 - **Twilio** owns the phone number and the audio pipe.
