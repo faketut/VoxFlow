@@ -177,6 +177,10 @@ async def handle_hangUp(uv_ws: Any, invocation_id: str, params: HangUpParams) ->
     call_sid, session = await session_manager.find_by_uv_ws(uv_ws)
     logger.info("hangUp tool invoked (callSid=%s)", call_sid)
 
+    if call_sid is None:
+        logger.warning("hangUp: no matching session for uv_ws; aborting")
+        return
+
     if session is not None:
         await session_manager.update(call_sid, hanging_up=True)
 
@@ -215,7 +219,10 @@ async def handle_hangUp(uv_ws: Any, invocation_id: str, params: HangUpParams) ->
 
 # -------- Dispatch -------------------------------------------------------------------
 
-ToolHandler = Callable[[Any, str, BaseModel], Awaitable[None]]
+# Handlers each accept their own concrete BaseModel subclass. The registry
+# is typed loosely (Any) because Callable parameters are contravariant in
+# mypy; runtime dispatch always pairs each entry with its matching schema.
+ToolHandler = Callable[[Any, str, Any], Awaitable[None]]
 
 TOOL_HANDLERS: dict[str, tuple[type[BaseModel], ToolHandler]] = {
     "queryCorpus":          (QueryCorpusParams,       handle_queryCorpus),

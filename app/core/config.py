@@ -42,6 +42,9 @@ HTTP_TIMEOUT_SECONDS: float = float(os.environ.get('HTTP_TIMEOUT_SECONDS', '10')
 N8N_MAX_RETRIES: int = int(os.environ.get('N8N_MAX_RETRIES', '3'))
 # Base delay in seconds for exponential backoff between retries.
 N8N_RETRY_BACKOFF_SECONDS: float = float(os.environ.get('N8N_RETRY_BACKOFF_SECONDS', '0.5'))
+# Tear down a media-stream WebSocket if no Twilio message arrives for this
+# many seconds (Twilio normally sends media frames every 20ms).
+WS_IDLE_TIMEOUT_SECONDS: float = float(os.environ.get('WS_IDLE_TIMEOUT_SECONDS', '60'))
 
 # Reject inbound Twilio webhooks with a missing / invalid X-Twilio-Signature.
 # Set to 'false' for local development with ngrok where the signed URL may

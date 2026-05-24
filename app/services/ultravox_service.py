@@ -31,8 +31,8 @@ async def create_ultravox_call(system_prompt: str, first_message: str) -> str:
     Returns an empty string on failure (matching the previous contract); the
     caller is expected to treat empty as "could not establish call".
     """
-    headers = {
-        "X-API-Key": ULTRAVOX_API_KEY,
+    headers: dict[str, str] = {
+        "X-API-Key": ULTRAVOX_API_KEY or "",
         "Content-Type": "application/json",
     }
 

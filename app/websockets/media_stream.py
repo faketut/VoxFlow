@@ -18,7 +18,7 @@ import websockets
 from fastapi import WebSocket, WebSocketDisconnect
 from websockets.protocol import State
 
-from app.core.config import LOG_EVENT_TYPES
+from app.core.config import LOG_EVENT_TYPES, WS_IDLE_TIMEOUT_SECONDS
 from app.core.prompts import get_system_prompt
 from app.core.shared_state import Session, session_manager
 from app.services.n8n_service import send_transcript_to_n8n
@@ -184,7 +184,19 @@ async def _handle_twilio(state: CallState) -> None:
     """Receive messages from Twilio and forward audio to Ultravox."""
     try:
         while True:
-            message = await state.twilio_ws.receive_text()
+            try:
+                message = await asyncio.wait_for(
+                    state.twilio_ws.receive_text(),
+                    timeout=WS_IDLE_TIMEOUT_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "Twilio WS idle for %.0fs (CallSid=%s); tearing down",
+                    WS_IDLE_TIMEOUT_SECONDS, state.call_sid,
+                )
+                # Raise the normal disconnect path so the TaskGroup tears
+                # down the ultravox task and runs cleanup uniformly.
+                raise WebSocketDisconnect(code=1001, reason="idle timeout")
             data = json.loads(message)
             event = data.get('event')
 
