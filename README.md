@@ -70,15 +70,34 @@ PUBLIC_URL=https://your-public-url
 Optional (with defaults):
 
 ```env
+# Server
 PORT=8000
 LOG_LEVEL=INFO
+LOG_FORMAT=text                  # or 'json' for structured logs
 HTTP_TIMEOUT_SECONDS=10
+
+# Agent identity (white-labeling)
+AGENT_NAME=Sara
+COMPANY_NAME=Acme Services
+DEFAULT_FIRST_MESSAGE=           # auto-generated from AGENT_NAME if unset
+PROMPT_DIR=                      # path to *.md prompt overrides (see prompts/README.md)
+CALENDARS_JSON=                  # JSON map of location → calendar email
+
+# Ultravox tuning
 ULTRAVOX_MODEL=fixie-ai/ultravox-70B
 ULTRAVOX_VOICE=Tanya-English
 ULTRAVOX_TEMPERATURE=0.1
 ULTRAVOX_TURN_ENDPOINT_DELAY=0.384s
 ULTRAVOX_CORPUS_ID=...
-N8N_HMAC_SECRET=  # optional: enables HMAC-SHA256 signing of n8n requests
+
+# Security
+TWILIO_VALIDATE_SIGNATURE=true   # set false for local ngrok dev
+N8N_HMAC_SECRET=                 # optional: HMAC-SHA256 sign outbound n8n calls
+
+# Reliability
+N8N_MAX_RETRIES=3
+N8N_RETRY_BACKOFF_SECONDS=0.5
+WS_IDLE_TIMEOUT_SECONDS=60       # tear down media-stream WS after this much Twilio silence
 ```
 
 ### Webhook authentication (HMAC)
