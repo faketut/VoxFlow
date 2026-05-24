@@ -4,12 +4,21 @@ Call stages management for Ultravox voice AI agent.
 Prompts are plain string templates; call ``get_system_prompt()`` or
 ``get_stage_prompt()`` to get a rendered string with the current timestamp
 and tenant identity injected.
+
+Templates can be overridden without code changes by setting ``PROMPT_DIR``
+to a directory containing ``system.md``, ``main_convo.md``, and/or
+``call_summary.md``. Any missing file falls back to the built-in default.
+Available placeholders: ``{agent_name}``, ``{company_name}``, ``{now}``.
 """
 import datetime
+import logging
+from pathlib import Path
 
-from app.core.config import AGENT_NAME, COMPANY_NAME
+from app.core.config import AGENT_NAME, COMPANY_NAME, PROMPT_DIR
 
-_SYSTEM_MESSAGE_TEMPLATE = """
+logger = logging.getLogger(__name__)
+
+_DEFAULT_SYSTEM_TEMPLATE = """
 ## Role
 You are a professional and reassuring AI Voice Assistant Named {agent_name} who works for {company_name}. Your primary objective is to greet the customer warmly, verify their identity, and determine their reason for calling.
 
@@ -81,7 +90,7 @@ You MUST follow these strict guidelines for when to transfer the call to other s
 """
 
 # Stage 2: MainConvo Stage (Conditional)
-_MAINCONVO_STAGE_TEMPLATE = """
+_DEFAULT_MAINCONVO_TEMPLATE = """
 ## Role
 You handle customer concerns, provide detailed answers, and ensure issue resolution.
 
@@ -142,7 +151,7 @@ You MUST follow these strict guidelines when considering stage transitions. DO N
 """
 
 # Stage 3: Call Summary & Closing
-_CALL_SUMMARY_STAGE_TEMPLATE = """
+_DEFAULT_CALL_SUMMARY_TEMPLATE = """
 ## Role
 You are a professional AI assistant for {company_name}. Your role is to summarize the call, clarify next steps, and ensure the customer leaves the conversation feeling informed and reassured.
 
@@ -186,6 +195,34 @@ This is the final stage of the call flow. There are NO transitions to other stag
 - Use the 'hangUp' tool to end the call when the customer has no further questions.
 - Never mention any tool names or function names in your responses.
 """
+
+def _load_template(name: str, default: str) -> str:
+    """Return the template named ``name`` from ``PROMPT_DIR`` or the default.
+
+    Looks for ``{PROMPT_DIR}/{name}.md``. Falls back to ``default`` on any
+    error (missing dir, missing file, unreadable) and logs a warning so
+    operators can spot misconfiguration.
+    """
+    if not PROMPT_DIR:
+        return default
+    path = Path(PROMPT_DIR) / f"{name}.md"
+    try:
+        text = path.read_text(encoding="utf-8")
+        logger.info("Loaded prompt override: %s", path)
+        return text
+    except FileNotFoundError:
+        logger.debug("Prompt override %s not found; using default", path)
+        return default
+    except OSError as exc:
+        logger.warning("Could not read prompt override %s: %s; using default",
+                       path, exc)
+        return default
+
+
+_SYSTEM_MESSAGE_TEMPLATE = _load_template("system", _DEFAULT_SYSTEM_TEMPLATE)
+_MAINCONVO_STAGE_TEMPLATE = _load_template("main_convo", _DEFAULT_MAINCONVO_TEMPLATE)
+_CALL_SUMMARY_STAGE_TEMPLATE = _load_template("call_summary", _DEFAULT_CALL_SUMMARY_TEMPLATE)
+
 
 def get_stage_prompt(stage_type, current_time=None):
     """

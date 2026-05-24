@@ -63,6 +63,11 @@ LOG_FORMAT: str = os.environ.get('LOG_FORMAT', 'text').lower()
 AGENT_NAME: str = os.environ.get('AGENT_NAME', 'Sara')
 COMPANY_NAME: str = os.environ.get('COMPANY_NAME', 'Acme Services')
 
+# Optional directory of *.md prompt overrides. When set, prompts.py will
+# load `system.md`, `main_convo.md`, `call_summary.md` from this directory
+# instead of the built-in defaults. Missing files fall back to defaults.
+PROMPT_DIR: str | None = os.environ.get('PROMPT_DIR')
+
 # Inbound Agent Default First Message
 DEFAULT_FIRST_MESSAGE: str = os.environ.get(
     'DEFAULT_FIRST_MESSAGE',

@@ -139,6 +139,14 @@ Set `LOG_FORMAT=json` to emit one JSON object per log line (production-friendly,
 parseable by log aggregators). Default `LOG_FORMAT=text` keeps human-readable
 output. `LOG_LEVEL` controls verbosity (default `INFO`).
 
+### Customizing prompts (no code changes)
+
+Point `PROMPT_DIR` at a directory containing `system.md`, `main_convo.md`,
+and/or `call_summary.md` to override the built-in prompts. Missing files fall
+back to defaults — only override what you want to change. See
+[prompts/README.md](prompts/README.md) for placeholders (`{agent_name}`,
+`{company_name}`, `{now}`) and a Docker volume-mount example.
+
 ### Twilio Setup
 1. Purchase a Twilio phone number
 2. Configure webhook: `https://your-public-url/incoming-call`
