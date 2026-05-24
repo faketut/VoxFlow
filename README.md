@@ -104,6 +104,28 @@ return items;
 
 Leave `N8N_HMAC_SECRET` unset to disable signing (backward compatible).
 
+### Inbound Twilio signature validation
+
+VoxFlow validates every request to `/incoming-call` and `/call-status` using
+the `X-Twilio-Signature` header (HMAC-SHA1 with your `TWILIO_AUTH_TOKEN`).
+Requests with missing / invalid signatures get a `403`. Disable for local
+ngrok testing with `TWILIO_VALIDATE_SIGNATURE=false`.
+
+### Outbound n8n retries
+
+Transient n8n failures (timeouts, connection errors, 5xx responses) are
+retried with exponential backoff. Tunable via `N8N_MAX_RETRIES` (default 3)
+and `N8N_RETRY_BACKOFF_SECONDS` (default 0.5).
+
+### Pre-built Docker images
+
+Each push to `main` and every `v*` tag publishes an image to GHCR:
+
+```bash
+docker pull ghcr.io/faketut/voxflow:latest
+docker run --env-file .env -p 8000:8000 ghcr.io/faketut/voxflow:latest
+```
+
 ### Twilio Setup
 1. Purchase a Twilio phone number
 2. Configure webhook: `https://your-public-url/incoming-call`

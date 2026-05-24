@@ -38,6 +38,18 @@ PORT: int = int(os.environ.get('PORT', '8000'))
 
 # Outbound HTTP behaviour
 HTTP_TIMEOUT_SECONDS: float = float(os.environ.get('HTTP_TIMEOUT_SECONDS', '10'))
+# Number of attempts (including the first) for transient n8n failures.
+N8N_MAX_RETRIES: int = int(os.environ.get('N8N_MAX_RETRIES', '3'))
+# Base delay in seconds for exponential backoff between retries.
+N8N_RETRY_BACKOFF_SECONDS: float = float(os.environ.get('N8N_RETRY_BACKOFF_SECONDS', '0.5'))
+
+# Reject inbound Twilio webhooks with a missing / invalid X-Twilio-Signature.
+# Set to 'false' for local development with ngrok where the signed URL may
+# differ from what FastAPI sees.
+TWILIO_VALIDATE_SIGNATURE: bool = (
+    os.environ.get('TWILIO_VALIDATE_SIGNATURE', 'true').strip().lower()
+    not in ('0', 'false', 'no', 'off')
+)
 
 # Logging
 LOG_LEVEL: str = os.environ.get('LOG_LEVEL', 'INFO').upper()

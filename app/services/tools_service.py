@@ -11,7 +11,6 @@ import json
 import logging
 from typing import Any, Awaitable, Callable
 
-import websockets
 from pydantic import BaseModel, Field, ValidationError
 from twilio.rest import Client
 from websockets.protocol import State

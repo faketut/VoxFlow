@@ -10,10 +10,12 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from twilio.rest import Client
 from twilio.twiml.voice_response import Connect, VoiceResponse
+
+from app.api.security import verify_twilio_signature
 
 from app.core.config import (
     DEFAULT_FIRST_MESSAGE,
@@ -111,7 +113,7 @@ async def root() -> dict[str, str]:
     return {"message": "Twilio + Ultravox Media Stream Server is running!"}
 
 
-@router.post("/incoming-call")
+@router.post("/incoming-call", dependencies=[Depends(verify_twilio_signature)])
 async def incoming_call(request: Request) -> Response:
     """Handle the inbound call from Twilio.
 
@@ -204,7 +206,7 @@ async def outgoing_call(payload: OutgoingCallRequest) -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(error))
 
 
-@router.post("/call-status")
+@router.post("/call-status", dependencies=[Depends(verify_twilio_signature)])
 async def call_status(request: Request) -> dict[str, Any]:
     """Receive Twilio status-callback events (currently logged only)."""
     try:

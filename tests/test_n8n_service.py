@@ -42,3 +42,61 @@ def test_build_signed_headers_with_secret(monkeypatch):
     expected = _hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
     assert headers["Content-Type"] == "application/json"
     assert headers["X-VoxFlow-Signature"] == f"sha256={expected}"
+
+
+@pytest.mark.asyncio
+async def test_send_to_webhook_retries_on_5xx(monkeypatch):
+    """5xx response triggers retry; succeeds on second attempt."""
+    monkeypatch.setattr(svc, "N8N_WEBHOOK_URL", "http://example.com/wh")
+    monkeypatch.setattr(svc, "N8N_MAX_RETRIES", 3)
+    monkeypatch.setattr(svc, "N8N_RETRY_BACKOFF_SECONDS", 0.0)
+
+    calls = {"n": 0}
+
+    class _FakeResp:
+        def __init__(self, code, text=""):
+            self.status_code = code
+            self.text = text
+
+    class _FakeClient:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def post(self, *a, **kw):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                return _FakeResp(503, "busy")
+            return _FakeResp(200, "ok")
+
+    monkeypatch.setattr(svc.httpx, "AsyncClient", _FakeClient)
+    result = await svc.send_to_webhook({"route": "1", "number": "+1", "data": "x"})
+    assert result == "ok"
+    assert calls["n"] == 2
+
+
+@pytest.mark.asyncio
+async def test_send_to_webhook_no_retry_on_4xx(monkeypatch):
+    """4xx response is terminal — no retries."""
+    monkeypatch.setattr(svc, "N8N_WEBHOOK_URL", "http://example.com/wh")
+    monkeypatch.setattr(svc, "N8N_MAX_RETRIES", 3)
+    monkeypatch.setattr(svc, "N8N_RETRY_BACKOFF_SECONDS", 0.0)
+
+    calls = {"n": 0}
+
+    class _FakeResp:
+        def __init__(self, code, text=""):
+            self.status_code = code
+            self.text = text
+
+    class _FakeClient:
+        def __init__(self, *a, **kw): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def post(self, *a, **kw):
+            calls["n"] += 1
+            return _FakeResp(404, "not found")
+
+    monkeypatch.setattr(svc.httpx, "AsyncClient", _FakeClient)
+    result = await svc.send_to_webhook({"route": "1", "number": "+1", "data": "x"})
+    assert "404" in result
+    assert calls["n"] == 1
