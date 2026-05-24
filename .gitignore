@@ -1,8 +1,24 @@
+# Secrets / local env
 .env
-__pycache__
-.venv
-./app/__pycache__
+
+# Python build / cache artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Tool caches
 .coverage
 coverage.xml
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+
+# IDE / editor
+.idea/
+.vscode/
