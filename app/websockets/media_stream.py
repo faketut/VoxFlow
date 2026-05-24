@@ -4,7 +4,10 @@ WebSocket handlers for Twilio and Ultravox media streaming.
 from __future__ import annotations
 
 import asyncio
-import audioop
+try:
+    import audioop  # Python < 3.13
+except ModuleNotFoundError:
+    import audioop_lts as audioop  # type: ignore[no-redef]  # Python 3.13+
 import base64
 import json
 import logging
