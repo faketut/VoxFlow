@@ -27,6 +27,8 @@ from app.core.config import (
     TWILIO_PHONE_NUMBER,
 )
 from app.core.shared_state import session_manager
+from app.core.log_context import bind_call_sid
+from app.core.metrics import calls_total
 from app.services.n8n_service import build_signed_headers
 
 logger = logging.getLogger(__name__)
@@ -126,6 +128,8 @@ async def incoming_call(request: Request) -> Response:
 
     caller_number = twilio_params.get('From', 'Unknown')
     session_id = twilio_params.get('CallSid')
+    bind_call_sid(session_id)
+    calls_total.labels(direction="inbound").inc()
     logger.info("Caller Number: %s, CallSid: %s", caller_number, session_id)
 
     first_message = await _fetch_first_message_from_n8n(caller_number)
@@ -183,6 +187,8 @@ async def outgoing_call(payload: OutgoingCallRequest) -> dict[str, Any]:
         )
 
         logger.info("Twilio call created: %s", call.sid)
+        bind_call_sid(call.sid)
+        calls_total.labels(direction="outbound").inc()
 
         await session_manager.create(
             call.sid,

@@ -12,6 +12,8 @@ import logging
 import sys
 from typing import Any
 
+from app.core.log_context import CallSidFilter
+
 # Keys that the LogRecord ships by default — anything else we treat as "extra".
 _RESERVED_RECORD_KEYS = {
     "name", "msg", "args", "levelname", "levelno", "pathname", "filename",
@@ -53,11 +55,14 @@ class JsonFormatter(logging.Formatter):
 def configure_logging(level: str, fmt: str) -> None:
     """Configure the root logger. Idempotent — replaces existing handlers."""
     handler = logging.StreamHandler(sys.stdout)
+    handler.addFilter(CallSidFilter())
     if fmt.strip().lower() == "json":
         handler.setFormatter(JsonFormatter())
     else:
         handler.setFormatter(
-            logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+            logging.Formatter(
+                "%(asctime)s %(levelname)s %(name)s [%(call_sid)s] %(message)s"
+            )
         )
 
     root = logging.getLogger()

@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -19,6 +20,7 @@ from app.core.config import (
     N8N_RETRY_BACKOFF_SECONDS,
     N8N_WEBHOOK_URL,
 )
+from app.core.metrics import n8n_request_duration_seconds, n8n_requests_total
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +75,15 @@ async def send_to_webhook(payload: dict[str, Any]) -> str:
                 "POST %s payload=%s attempt=%d/%d",
                 N8N_WEBHOOK_URL, payload, attempt, attempts,
             )
+            t0 = time.monotonic()
             async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
                 response = await client.post(
                     N8N_WEBHOOK_URL, content=body, headers=headers,
                 )
+            n8n_request_duration_seconds.observe(time.monotonic() - t0)
 
             if response.status_code == 200:
+                n8n_requests_total.labels(outcome="2xx").inc()
                 return response.text
 
             # Retry on 5xx; surface 4xx immediately (won't succeed on retry).
@@ -89,6 +94,8 @@ async def send_to_webhook(payload: dict[str, Any]) -> str:
                     response.status_code, attempt, attempts,
                 )
             else:
+                bucket = "5xx" if response.status_code >= 500 else "4xx"
+                n8n_requests_total.labels(outcome=bucket).inc()
                 logger.warning(
                     "n8n webhook returned %d: %s",
                     response.status_code, response.text,
@@ -110,12 +117,16 @@ async def send_to_webhook(payload: dict[str, Any]) -> str:
                 attempt, attempts, e,
             )
         except httpx.HTTPError as e:
+            n8n_requests_total.labels(outcome="transport_error").inc()
             logger.exception("HTTP error calling n8n webhook")
             return json.dumps({"error": f"N8N webhook HTTP error: {e}"})
 
         if attempt < attempts:
             await asyncio.sleep(N8N_RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1)))
 
+    # Final classification of terminal failure for metrics.
+    outcome = "timeout" if "timeout" in last_error else "transport_error"
+    n8n_requests_total.labels(outcome=outcome).inc()
     logger.error("n8n webhook failed after %d attempts: %s", attempts, last_error)
     return json.dumps({"error": f"N8N webhook failed after {attempts} attempts: {last_error}"})
 

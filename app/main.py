@@ -21,6 +21,7 @@ from app.core.config import (
     validate_config,
 )
 from app.core.logging_config import configure_logging
+from app.core.metrics import render_metrics
 from app.websockets.media_stream import media_stream
 
 configure_logging(LOG_LEVEL, LOG_FORMAT)
@@ -74,6 +75,13 @@ async def readiness_check(response: Response) -> dict[str, object]:
     if not ready:
         response.status_code = 503
     return {"ready": ready, "checks": checks}
+
+
+@app.get("/metrics")
+async def metrics_endpoint() -> Response:
+    """Prometheus text-format metrics for scraping."""
+    body, content_type = render_metrics()
+    return Response(content=body, media_type=content_type)
 
 
 if __name__ == "__main__":

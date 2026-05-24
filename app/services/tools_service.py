@@ -22,6 +22,7 @@ from app.core.config import (
 )
 from app.core.prompts import get_stage_prompt, get_stage_voice
 from app.core.shared_state import session_manager
+from app.core.metrics import tool_invocations_total
 from app.services.n8n_service import send_to_webhook, send_transcript_to_n8n
 from app.utils.websocket_utils import safe_close_websocket
 
@@ -242,6 +243,7 @@ async def handle_tool_invocation(uv_ws: Any, toolName: str, invocationId: str,
     entry = TOOL_HANDLERS.get(toolName)
     if entry is None:
         logger.warning("Unknown tool: %s", toolName)
+        tool_invocations_total.labels(tool=toolName, outcome="unknown").inc()
         await _send_tool_error(uv_ws, invocationId, f"Unknown tool: {toolName}")
         return
 
@@ -250,6 +252,7 @@ async def handle_tool_invocation(uv_ws: Any, toolName: str, invocationId: str,
         validated = model_cls(**(parameters or {}))
     except ValidationError as e:
         logger.warning("Invalid parameters for tool %s: %s", toolName, e)
+        tool_invocations_total.labels(tool=toolName, outcome="invalid_params").inc()
         # Match the legacy behavior for schedule_meeting: ask the agent for the
         # missing fields instead of returning a hard error.
         if toolName == "schedule_meeting":
@@ -266,8 +269,10 @@ async def handle_tool_invocation(uv_ws: Any, toolName: str, invocationId: str,
 
     try:
         await handler(uv_ws, invocationId, validated)
+        tool_invocations_total.labels(tool=toolName, outcome="ok").inc()
     except Exception:
         logger.exception("Handler for tool %s raised", toolName)
+        tool_invocations_total.labels(tool=toolName, outcome="error").inc()
         try:
             await _send_tool_error(
                 uv_ws, invocationId, f"An error occurred while processing {toolName}."

@@ -147,16 +147,22 @@ docker run --env-file .env -p 8000:8000 ghcr.io/faketut/voxflow:latest
 
 ### Health & readiness
 
-| Endpoint  | Status when healthy | Meaning                                    |
-|-----------|---------------------|--------------------------------------------|
-| `/health` | 200                 | Process is up. Use as liveness probe.      |
-| `/ready`  | 200 / 503           | All required env vars are populated. Use as readiness probe. Body lists per-dependency status. |
+| Endpoint   | Status when healthy | Meaning                                    |
+|------------|---------------------|--------------------------------------------|
+| `/health`  | 200                 | Process is up. Use as liveness probe.      |
+| `/ready`   | 200 / 503           | All required env vars are populated. Use as readiness probe. Body lists per-dependency status. |
+| `/metrics` | 200                 | Prometheus text exposition (`voxflow_calls_total`, `voxflow_tool_invocations_total{tool,outcome}`, `voxflow_n8n_requests_total{outcome}`, `voxflow_n8n_request_duration_seconds`, `voxflow_call_disconnects_total{reason}`). |
 
 ### Structured logging
 
 Set `LOG_FORMAT=json` to emit one JSON object per log line (production-friendly,
 parseable by log aggregators). Default `LOG_FORMAT=text` keeps human-readable
 output. `LOG_LEVEL` controls verbosity (default `INFO`).
+
+Every log record made while a call is active is automatically tagged with the
+Twilio `CallSid`: in text format as `[CAxxxx]` between the logger name and
+message, and in JSON format as a top-level `call_sid` field. The binding is
+propagated through `contextvars` — no call site has to pass it explicitly.
 
 ### Customizing prompts (no code changes)
 

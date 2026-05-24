@@ -19,6 +19,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 from websockets.protocol import State
 
 from app.core.config import LOG_EVENT_TYPES, WS_IDLE_TIMEOUT_SECONDS
+from app.core.log_context import bind_call_sid, clear_call_sid
+from app.core.metrics import call_disconnects_total
 from app.core.prompts import get_system_prompt
 from app.core.shared_state import Session, session_manager
 from app.services.n8n_service import send_transcript_to_n8n
@@ -58,11 +60,14 @@ async def media_stream(websocket: WebSocket) -> None:
                            name="ultravox-bootstrap")
     except* WebSocketDisconnect:
         logger.info("Twilio WebSocket disconnected (CallSid=%s)", state.call_sid)
+        call_disconnects_total.labels(reason="normal").inc()
     except* Exception as eg:  # noqa: BLE001 — log any unexpected error groups
         for exc in eg.exceptions:
             logger.exception("Unhandled exception in media_stream", exc_info=exc)
+        call_disconnects_total.labels(reason="error").inc()
     finally:
         await _cleanup(state)
+        clear_call_sid()
 
 
 async def _handle_ultravox_when_ready(state: CallState,
@@ -194,6 +199,7 @@ async def _handle_twilio(state: CallState) -> None:
                     "Twilio WS idle for %.0fs (CallSid=%s); tearing down",
                     WS_IDLE_TIMEOUT_SECONDS, state.call_sid,
                 )
+                call_disconnects_total.labels(reason="idle_timeout").inc()
                 # Raise the normal disconnect path so the TaskGroup tears
                 # down the ultravox task and runs cleanup uniformly.
                 raise WebSocketDisconnect(code=1001, reason="idle timeout")
@@ -218,6 +224,7 @@ async def _handle_twilio(state: CallState) -> None:
 async def _on_twilio_start(state: CallState, data: dict[str, Any]) -> None:
     state.stream_sid = data['start']['streamSid']
     state.call_sid = data['start']['callSid']
+    bind_call_sid(state.call_sid)
     custom_params = data['start'].get('customParameters', {})
 
     logger.info("Twilio start: callSid=%s streamSid=%s",
