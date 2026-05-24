@@ -126,6 +126,19 @@ docker pull ghcr.io/faketut/voxflow:latest
 docker run --env-file .env -p 8000:8000 ghcr.io/faketut/voxflow:latest
 ```
 
+### Health & readiness
+
+| Endpoint  | Status when healthy | Meaning                                    |
+|-----------|---------------------|--------------------------------------------|
+| `/health` | 200                 | Process is up. Use as liveness probe.      |
+| `/ready`  | 200 / 503           | All required env vars are populated. Use as readiness probe. Body lists per-dependency status. |
+
+### Structured logging
+
+Set `LOG_FORMAT=json` to emit one JSON object per log line (production-friendly,
+parseable by log aggregators). Default `LOG_FORMAT=text` keeps human-readable
+output. `LOG_LEVEL` controls verbosity (default `INFO`).
+
 ### Twilio Setup
 1. Purchase a Twilio phone number
 2. Configure webhook: `https://your-public-url/incoming-call`

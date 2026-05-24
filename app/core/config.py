@@ -53,6 +53,8 @@ TWILIO_VALIDATE_SIGNATURE: bool = (
 
 # Logging
 LOG_LEVEL: str = os.environ.get('LOG_LEVEL', 'INFO').upper()
+# 'text' (default) or 'json' for structured logs (production-friendly).
+LOG_FORMAT: str = os.environ.get('LOG_FORMAT', 'text').lower()
 
 # Agent identity — override to white-label VoxFlow for a different business.
 AGENT_NAME: str = os.environ.get('AGENT_NAME', 'Sara')

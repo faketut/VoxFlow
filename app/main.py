@@ -7,22 +7,23 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
-import uvicorn
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, Response, WebSocket
 
 from app.api.endpoints.calls import router as calls_router
-from app.core.config import LOG_LEVEL, PORT, validate_config
+from app.core.config import (
+    LOG_FORMAT,
+    LOG_LEVEL,
+    N8N_WEBHOOK_URL,
+    PORT,
+    PUBLIC_URL,
+    TWILIO_ACCOUNT_SID,
+    ULTRAVOX_API_KEY,
+    validate_config,
+)
+from app.core.logging_config import configure_logging
 from app.websockets.media_stream import media_stream
 
-
-def _configure_logging() -> None:
-    logging.basicConfig(
-        level=LOG_LEVEL,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
-
-
-_configure_logging()
+configure_logging(LOG_LEVEL, LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
@@ -56,7 +57,28 @@ async def health_check() -> dict[str, str]:
     return {"status": "healthy", "service": "VoxFlow AI Receptionist"}
 
 
+@app.get("/ready")
+async def readiness_check(response: Response) -> dict[str, object]:
+    """Readiness probe: 200 only when required config is populated.
+
+    Distinct from ``/health`` (which just confirms the process is up).
+    Container orchestrators should send traffic only when this returns 200.
+    """
+    checks = {
+        "twilio": bool(TWILIO_ACCOUNT_SID),
+        "ultravox": bool(ULTRAVOX_API_KEY),
+        "n8n": bool(N8N_WEBHOOK_URL),
+        "public_url": bool(PUBLIC_URL),
+    }
+    ready = all(checks.values())
+    if not ready:
+        response.status_code = 503
+    return {"ready": ready, "checks": checks}
+
+
 if __name__ == "__main__":
+    import uvicorn
+
     logger.info("Starting VoxFlow AI Receptionist on port %d", PORT)
     # NOTE: do not enable --reload here; enable it from the CLI for local dev:
     #   uvicorn app.main:app --reload --port 8000
