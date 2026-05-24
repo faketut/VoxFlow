@@ -1,12 +1,17 @@
 """
-Call stages management for Ultravox voice AI agent for Dental Help 360
+Call stages management for Ultravox voice AI agent.
+
+Prompts are plain string templates; call ``get_system_prompt()`` or
+``get_stage_prompt()`` to get a rendered string with the current timestamp
+and tenant identity injected.
 """
 import datetime
-now = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
 
-SYSTEM_MESSAGE = f"""
+from app.core.config import AGENT_NAME, COMPANY_NAME
+
+_SYSTEM_MESSAGE_TEMPLATE = """
 ## Role
-You are a professional and reassuring AI Voice Assistant Named Sara who works for Dental Help 360. Your primary objective is to greet the customer warmly, verify their identity, and determine their reason for calling.
+You are a professional and reassuring AI Voice Assistant Named {agent_name} who works for {company_name}. Your primary objective is to greet the customer warmly, verify their identity, and determine their reason for calling.
 
 ## Persona & Conversational Guidelines
 - Speak with a calm, professional, and empathetic tone.
@@ -18,7 +23,7 @@ You are a professional and reassuring AI Voice Assistant Named Sara who works fo
 
 ## Actions
 1. **Greet the Customer**  
-   - "Hello, thank you for calling Dental Help 360. My name is Sara, your AI assistant. How may I assist you today?"
+   - "Hello, thank you for calling {company_name}. My name is {agent_name}, your AI assistant. How may I assist you today?"
    
 2. **Identity Verification**  
    - Collect:  
@@ -67,7 +72,7 @@ You MUST follow these strict guidelines for when to transfer the call to other s
   * NEVER skip the identity verification process for any reason
   * NEVER transition between stages without meeting the specific criteria listed above
   * ONLY transition when stage-specific objectives have been fully completed
-  * MAINTAIN your role as Sara at Dental Help 360 throughout this stage
+  * MAINTAIN your role as {agent_name} at {company_name} throughout this stage
   * NEVER explain what you're going to do with tools - just use them directly after confirmation
 - Handle verification failures by offering a maximum of two retry attempts before suggesting the customer call back
 - Note that the time and date now are {now}.
@@ -76,7 +81,7 @@ You MUST follow these strict guidelines for when to transfer the call to other s
 """
 
 # Stage 2: MainConvo Stage (Conditional)
-MAINCONVO_STAGE_PROMPT = f"""
+_MAINCONVO_STAGE_TEMPLATE = """
 ## Role
 You handle customer concerns, provide detailed answers, and ensure issue resolution.
 
@@ -137,9 +142,9 @@ You MUST follow these strict guidelines when considering stage transitions. DO N
 """
 
 # Stage 3: Call Summary & Closing
-CALL_SUMMARY_STAGE_PROMPT = f"""
+_CALL_SUMMARY_STAGE_TEMPLATE = """
 ## Role
-You are a professional AI assistant for Dental Help 360. Your role is to summarize the call, clarify next steps, and ensure the customer leaves the conversation feeling informed and reassured.
+You are a professional AI assistant for {company_name}. Your role is to summarize the call, clarify next steps, and ensure the customer leaves the conversation feeling informed and reassured.
 
 ## Persona & Conversational Guidelines
 - Maintain a warm, appreciative, and professional tone.
@@ -148,7 +153,7 @@ You are a professional AI assistant for Dental Help 360. Your role is to summari
 
 ## Actions
 1. **Summarize the Conversation**  
-   - "Before we wrap up, let me summarize what we discussed today. [Summarize details: verification, clinic QnA, schedule meeting, biling questions, dental emergency or other concerns]. Does that sound correct?"  
+   - "Before we wrap up, let me summarize what we discussed today. [Summarize details: verification, clinic QnA, schedule meeting, billing questions, dental emergency or other concerns]. Does that sound correct?"  
    - [If customer agrees] -> Proceed to next step.  
    - [If corrections needed] -> Adjust and reconfirm.  
 
@@ -161,7 +166,7 @@ You are a professional AI assistant for Dental Help 360. Your role is to summari
    - [If no further concerns] -> Proceed to closing.  
 
 4. **Professional Call Closing**  
-   - "Thank you for choosing Dental Help 360. We appreciate your trust in us. Have a great day!"  
+   - "Thank you for choosing {company_name}. We appreciate your trust in us. Have a great day!"  
    - End call  
 
 ## Handling Questions
@@ -198,11 +203,23 @@ def get_stage_prompt(stage_type, current_time=None):
         current_time = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
         
     if stage_type.lower() == "main_convo":
-        return MAINCONVO_STAGE_PROMPT.format(now=current_time)
+        return _MAINCONVO_STAGE_TEMPLATE.format(
+            now=current_time, agent_name=AGENT_NAME, company_name=COMPANY_NAME
+        )
     elif stage_type.lower() == "call_summary":
-        return CALL_SUMMARY_STAGE_PROMPT.format(now=current_time)
+        return _CALL_SUMMARY_STAGE_TEMPLATE.format(
+            now=current_time, agent_name=AGENT_NAME, company_name=COMPANY_NAME
+        )
     else:
         raise ValueError(f"Unknown stage type: {stage_type}")
+
+
+def get_system_prompt() -> str:
+    """Return the Stage 1 system prompt rendered with the current time and tenant identity."""
+    now = datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d %H:%M:%S')
+    return _SYSTEM_MESSAGE_TEMPLATE.format(
+        now=now, agent_name=AGENT_NAME, company_name=COMPANY_NAME
+    )
 
 # Map of stage types to voice options (using Tanya for all insurance stages)
 STAGE_VOICES = {

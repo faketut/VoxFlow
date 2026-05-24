@@ -16,7 +16,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from websockets.protocol import State
 
 from app.core.config import LOG_EVENT_TYPES
-from app.core.prompts import SYSTEM_MESSAGE
+from app.core.prompts import get_system_prompt
 from app.core.shared_state import Session, session_manager
 from app.services.n8n_service import send_transcript_to_n8n
 from app.services.ultravox_service import create_ultravox_call
@@ -226,7 +226,7 @@ async def _on_twilio_start(state: CallState, data: dict[str, Any]) -> None:
     )
 
     uv_join_url = await create_ultravox_call(
-        system_prompt=SYSTEM_MESSAGE, first_message=first_message,
+        system_prompt=get_system_prompt(), first_message=first_message,
     )
     if not uv_join_url:
         logger.error("Ultravox joinUrl empty; cannot establish WebSocket")

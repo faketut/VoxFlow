@@ -1,6 +1,7 @@
 """
 Application configuration settings.
 """
+import json
 import os
 from dotenv import load_dotenv
 
@@ -38,18 +39,25 @@ HTTP_TIMEOUT_SECONDS: float = float(os.environ.get('HTTP_TIMEOUT_SECONDS', '10')
 # Logging
 LOG_LEVEL: str = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
+# Agent identity — override to white-label VoxFlow for a different business.
+AGENT_NAME: str = os.environ.get('AGENT_NAME', 'Sara')
+COMPANY_NAME: str = os.environ.get('COMPANY_NAME', 'Dental Help 360')
+
 # Inbound Agent Default First Message
-DEFAULT_FIRST_MESSAGE: str = (
-    "Hey, this is Sara from SecureLife Insurance. How can I assist you today?"
+DEFAULT_FIRST_MESSAGE: str = os.environ.get(
+    'DEFAULT_FIRST_MESSAGE',
+    f"Hey, this is {AGENT_NAME}. How can I assist you today?",
 )
 
-# Calendar settings
-CALENDARS_LIST: dict[str, str] = {
-    "LOCATION1": "CALENDAR_EMAIL1",
-    "LOCATION2": "CALENDAR_EMAIL2",
-    "LOCATION3": "CALENDAR_EMAIL3",
-    # Add more locations / Calendar IDs as needed
-}
+# Calendar settings — set CALENDARS_JSON='{"Location": "cal@email"}' to override.
+_calendars_json: str | None = os.environ.get('CALENDARS_JSON')
+CALENDARS_LIST: dict[str, str] = (
+    json.loads(_calendars_json) if _calendars_json else {
+        "LOCATION1": "CALENDAR_EMAIL1",
+        "LOCATION2": "CALENDAR_EMAIL2",
+        "LOCATION3": "CALENDAR_EMAIL3",
+    }
+)
 
 # Logging event types we surface from Ultravox
 LOG_EVENT_TYPES: list[str] = [
