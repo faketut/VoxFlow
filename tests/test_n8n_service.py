@@ -22,3 +22,23 @@ async def test_send_transcript_skipped_when_url_not_configured(monkeypatch):
     await svc.send_transcript_to_n8n(session)
     # transcript_sent is set even on error path (best-effort)
     assert session.get("transcript_sent") is True
+
+
+def test_build_signed_headers_without_secret(monkeypatch):
+    """No secret → only Content-Type header, no signature."""
+    monkeypatch.setattr(svc, "N8N_HMAC_SECRET", None)
+    headers = svc.build_signed_headers(b'{"a":1}')
+    assert headers == {"Content-Type": "application/json"}
+
+
+def test_build_signed_headers_with_secret(monkeypatch):
+    """Secret set → adds X-VoxFlow-Signature with sha256= prefix."""
+    import hashlib
+    import hmac as _hmac
+    secret = "test-secret"
+    body = b'{"route":"1","number":"+1"}'
+    monkeypatch.setattr(svc, "N8N_HMAC_SECRET", secret)
+    headers = svc.build_signed_headers(body)
+    expected = _hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    assert headers["Content-Type"] == "application/json"
+    assert headers["X-VoxFlow-Signature"] == f"sha256={expected}"

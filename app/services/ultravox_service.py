@@ -137,16 +137,16 @@ def _build_selected_tools() -> list[dict]:
                         "location": "PARAMETER_LOCATION_BODY",
                         "schema": {
                             "type": "string",
-                            "description": "Use the booking link for the corresponding clinic from queryCorpus tool",
+                            "description": "Use the booking link for the corresponding location from queryCorpus tool",
                         },
                         "required": False,
                     },
                     {
-                        "name": "clinicName",
+                        "name": "locationName",
                         "location": "PARAMETER_LOCATION_BODY",
                         "schema": {
                             "type": "string",
-                            "description": "Get the Clinic's name from the call context {{clinicName}}",
+                            "description": "Get the location name from the call context {{locationName}}",
                         },
                         "required": False,
                     },
@@ -178,7 +178,7 @@ def _build_selected_tools() -> list[dict]:
         {
             "temporaryTool": {
                 "modelToolName": "move_to_main_convo",
-                "description": "Transfer the call to a manager for clinic Q&A, schedule meeting, billing questions, and dental emergency",
+                "description": "Transfer the call to a specialist for general inquiries, scheduling, billing, or urgent issues",
                 "dynamicParameters": [
                     {
                         "name": "issue_type",
@@ -186,10 +186,10 @@ def _build_selected_tools() -> list[dict]:
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "clinic_QnA",
+                                "general_inquiry",
                                 "schedule_meeting",
                                 "billing_questions",
-                                "dental_emergency",
+                                "urgent_issue",
                             ],
                             "description": "Type of issue requiring manager assistance",
                         },

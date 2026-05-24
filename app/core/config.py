@@ -28,6 +28,9 @@ ULTRAVOX_CORPUS_ID: str = os.environ.get(
 
 # Webhooks
 N8N_WEBHOOK_URL: str | None = os.environ.get('N8N_WEBHOOK_URL')
+# Optional shared secret for signing outbound n8n requests with HMAC-SHA256.
+# Set the same value in your n8n workflow to verify the signature.
+N8N_HMAC_SECRET: str | None = os.environ.get('N8N_HMAC_SECRET')
 PUBLIC_URL: str | None = os.environ.get('PUBLIC_URL')
 
 # Server settings
@@ -41,7 +44,7 @@ LOG_LEVEL: str = os.environ.get('LOG_LEVEL', 'INFO').upper()
 
 # Agent identity — override to white-label VoxFlow for a different business.
 AGENT_NAME: str = os.environ.get('AGENT_NAME', 'Sara')
-COMPANY_NAME: str = os.environ.get('COMPANY_NAME', 'Dental Clinic')
+COMPANY_NAME: str = os.environ.get('COMPANY_NAME', 'Acme Services')
 
 # Inbound Agent Default First Message
 DEFAULT_FIRST_MESSAGE: str = os.environ.get(

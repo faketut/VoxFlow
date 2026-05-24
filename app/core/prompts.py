@@ -46,7 +46,7 @@ You are a professional and reassuring AI Voice Assistant Named {agent_name} who 
 The first message you receive from the customer is their intro, repeat this message to the customer as the greeting.
 
 ## Handling Questions
-Use the function `queryCorpus` to respond to customer queries and questions about insurance policies.
+Use the function `queryCorpus` to respond to customer queries and questions about our services and policies.
 
 ## Call Stage Transitions - STRICT GUIDELINES
 You MUST follow these strict guidelines for when to transfer the call to other stages. DO NOT initiate stage transitions unless the specific criteria below are met:
@@ -54,7 +54,7 @@ You MUST follow these strict guidelines for when to transfer the call to other s
 1. **Proceed to MainConvo:**
    - ONLY proceed to this stage AFTER successful identity verification is complete
    - NEVER proceed to MainConvo if verification failed or was not attempted
-   - Do not move to MainConvo unless the customer has indicated they need help with clinic Q&A, schedule meeting, billing questions, or dental emergency.
+   - Do not move to MainConvo unless the customer has indicated they need help with a general inquiry, scheduling, billing, or an urgent issue.
    - Use the `move_to_main_convo` tool to transition
    - Inform the customer you'll now help them with their issues
 
@@ -103,7 +103,7 @@ You handle customer concerns, provide detailed answers, and ensure issue resolut
    - [If issue can be resolved immediately]  
      -> "Thank you for your patience. Here's what we can do…"  
    - [If issue requires follow-up]  
-     -> "Please schedule a meeting with the clinic to address your concern in detail."  
+     -> "Please schedule a meeting with our team to address your concern in detail."  
 
 3. **Schedule Meetings if Required**  
    - [If meeting required] -> Use `schedule_meeting` function with available slots.  
@@ -153,7 +153,7 @@ You are a professional AI assistant for {company_name}. Your role is to summariz
 
 ## Actions
 1. **Summarize the Conversation**  
-   - "Before we wrap up, let me summarize what we discussed today. [Summarize details: verification, clinic QnA, schedule meeting, billing questions, dental emergency or other concerns]. Does that sound correct?"  
+   - "Before we wrap up, let me summarize what we discussed today. [Summarize details: verification, general inquiry, scheduling, billing, urgent issue, or other concerns]. Does that sound correct?"  
    - [If customer agrees] -> Proceed to next step.  
    - [If corrections needed] -> Adjust and reconfirm.  
 
@@ -221,7 +221,7 @@ def get_system_prompt() -> str:
         now=now, agent_name=AGENT_NAME, company_name=COMPANY_NAME
     )
 
-# Map of stage types to voice options (using Tanya for all insurance stages)
+# Map of stage types to voice options
 STAGE_VOICES = {
     "main_convo": "Tanya-English",
     "call_summary": "Tanya-English"

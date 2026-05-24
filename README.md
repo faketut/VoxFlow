@@ -41,6 +41,17 @@ An intelligent voice receptionist powered by **Twilio** and **Ultravox** that ha
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
 
+### Run with Docker
+
+```bash
+cp .env.example .env  # then fill in your credentials
+docker compose up --build
+```
+
+The service will be available on `http://localhost:8000` (override with `PORT`).
+The built image runs as a non-root user and exposes a `/health` endpoint used
+by the compose healthcheck.
+
 ## Configuration
 
 ### Environment Variables
@@ -67,7 +78,31 @@ ULTRAVOX_VOICE=Tanya-English
 ULTRAVOX_TEMPERATURE=0.1
 ULTRAVOX_TURN_ENDPOINT_DELAY=0.384s
 ULTRAVOX_CORPUS_ID=...
+N8N_HMAC_SECRET=  # optional: enables HMAC-SHA256 signing of n8n requests
 ```
+
+### Webhook authentication (HMAC)
+
+When `N8N_HMAC_SECRET` is set, every outbound request to `N8N_WEBHOOK_URL`
+includes an `X-VoxFlow-Signature: sha256=<hex>` header. The hex value is
+`HMAC_SHA256(secret, raw_request_body)`. Verify it in n8n with a Function /
+Code node:
+
+```js
+const crypto = require('crypto');
+const secret = $env.N8N_HMAC_SECRET;
+const sig = $request.headers['x-voxflow-signature'] || '';
+const expected = 'sha256=' + crypto
+  .createHmac('sha256', secret)
+  .update($request.rawBody)
+  .digest('hex');
+if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+  throw new Error('Invalid signature');
+}
+return items;
+```
+
+Leave `N8N_HMAC_SECRET` unset to disable signing (backward compatible).
 
 ### Twilio Setup
 1. Purchase a Twilio phone number

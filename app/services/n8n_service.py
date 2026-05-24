@@ -3,15 +3,33 @@ Services for handling webhook communications with n8n.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 from typing import Any
 
 import httpx
 
-from app.core.config import HTTP_TIMEOUT_SECONDS, N8N_WEBHOOK_URL
+from app.core.config import HTTP_TIMEOUT_SECONDS, N8N_HMAC_SECRET, N8N_WEBHOOK_URL
 
 logger = logging.getLogger(__name__)
+
+
+def build_signed_headers(body: bytes) -> dict[str, str]:
+    """Return headers with HMAC-SHA256 signature of ``body`` when a secret is set.
+
+    The signature header (``X-VoxFlow-Signature: sha256=<hex>``) can be
+    verified on the n8n side to ensure the request originated from VoxFlow.
+    If no secret is configured, only the Content-Type header is returned.
+    """
+    headers = {"Content-Type": "application/json"}
+    if N8N_HMAC_SECRET:
+        digest = hmac.new(
+            N8N_HMAC_SECRET.encode("utf-8"), body, hashlib.sha256
+        ).hexdigest()
+        headers["X-VoxFlow-Signature"] = f"sha256={digest}"
+    return headers
 
 
 async def send_transcript_to_n8n(session: dict[str, Any]) -> None:
@@ -36,12 +54,13 @@ async def send_to_webhook(payload: dict[str, Any]) -> str:
         return json.dumps({"error": "N8N_WEBHOOK_URL not configured"})
 
     try:
+        body = json.dumps(payload).encode("utf-8")
         logger.debug("POST %s payload=%s", N8N_WEBHOOK_URL, payload)
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 N8N_WEBHOOK_URL,
-                json=payload,
-                headers={"Content-Type": "application/json"},
+                content=body,
+                headers=build_signed_headers(body),
             )
 
         if response.status_code != 200:

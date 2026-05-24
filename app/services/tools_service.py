@@ -141,9 +141,9 @@ async def handle_move_to_main_convo(uv_ws: Any, invocation_id: str,
     voice = get_stage_voice('main_convo')
     name_clause = f", {params.customer_name}" if params.customer_name else ""
     greeting = (
-        f"You're now speaking with Alex, the Senior main_convo at SecureLife "
-        f"Insurance. I've been briefed on your situation{name_clause}. "
-        f"You're concerned about {params.issue_type}. How can I help you today?"
+        f"You're now speaking with a specialist who can help{name_clause}. "
+        f"I've been briefed on your situation regarding {params.issue_type}. "
+        f"How can I help you today?"
     )
     await uv_ws.send(json.dumps({
         "type": "client_tool_result",

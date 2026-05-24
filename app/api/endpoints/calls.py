@@ -25,6 +25,7 @@ from app.core.config import (
     TWILIO_PHONE_NUMBER,
 )
 from app.core.shared_state import session_manager
+from app.services.n8n_service import build_signed_headers
 
 logger = logging.getLogger(__name__)
 
@@ -74,15 +75,16 @@ async def _fetch_first_message_from_n8n(caller_number: str) -> str:
         return DEFAULT_FIRST_MESSAGE
 
     try:
+        body = json.dumps({
+            "route": N8N_ROUTE_FIRST_MESSAGE,
+            "number": caller_number,
+            "data": "empty",
+        }).encode("utf-8")
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_SECONDS) as client:
             resp = await client.post(
                 N8N_WEBHOOK_URL,
-                headers={"Content-Type": "application/json"},
-                json={
-                    "route": N8N_ROUTE_FIRST_MESSAGE,
-                    "number": caller_number,
-                    "data": "empty",
-                },
+                content=body,
+                headers=build_signed_headers(body),
             )
     except (httpx.TimeoutException, httpx.HTTPError) as e:
         logger.warning("n8n first-message fetch failed: %s", e)
